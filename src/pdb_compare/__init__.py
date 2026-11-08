@@ -26,8 +26,7 @@ def handle_cluster(args):
     if sys.stdin.isatty():
         if args.input is None:
             raise ArgumentError(args.input, message='No input from stdin. Pass input via --input argument')
-        path = args.input
-        lines = path.read_text().splitlines()
+        lines = args.input.read_text().splitlines()
     else:
         lines = sys.stdin.read().splitlines()
 
@@ -36,7 +35,7 @@ def handle_cluster(args):
         if not path.exists():
             raise FileNotFoundError(f"{path} not found")
 
-    strucs = get_strucs(paths)
+    strucs = get_strucs(paths, args.workers)
 
     records = seq2id(strucs)
     seqs = list(records)
@@ -102,6 +101,7 @@ def handle_align(args):
 def get_user_args():
     parser = argparse.ArgumentParser(description='Align PDB structures using Biopython CEAligner.')
 
+    parser.add_argument('-w', '--workers', default=1, help='Number of parallel workers to use', required=False)
     subparsers = parser.add_subparsers(required=True)
 
     cluster_parser = subparsers.add_parser('cluster', help='tools for clustering pdb structure chains')
@@ -124,7 +124,6 @@ def main():
     try:
         args.func(args)
     except Exception as e:
-        raise e
         raise SystemExit(str(e))
     else:
         raise SystemExit()

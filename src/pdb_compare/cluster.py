@@ -1,3 +1,6 @@
+import os
+from concurrent.futures import ProcessPoolExecutor
+
 import argparse
 from operator import itemgetter
 from typing import LiteralString
@@ -5,7 +8,8 @@ import string
 import numpy as np
 from pathlib import Path
 from pprint import pprint
-from Bio.PDB import PDBParser, PPBuilder, Structure
+from Bio.PDB import PDBParser, PPBuilder
+from Bio.PDB.Structure import Structure
 from Bio.Align import PairwiseAligner
 from Bio.Align import substitution_matrices
 from tqdm import tqdm
@@ -52,7 +56,7 @@ def get_adj_mat(seqs: list[str], aligner: PairwiseAligner, similarity_threshold:
     return (mat / norm) > similarity_threshold
 
 
-def seq2id(strucs: dict[str, Structure.Structure]) -> dict[str, list[tuple[str, str]]]:
+def seq2id(strucs: dict[str, Structure]) -> dict[str, list[tuple[str, str]]]:
     """
     strucs: dict of Structures
         e.g. {'8ja3.pdb': <Structure id=8ja3.pdb>, '8wrz.pdb': <Structure id=8wrz.pdb>}
@@ -103,13 +107,15 @@ def get_canonical_chains(clusters: list[int]) -> list[LiteralString]:
     return [string.ascii_uppercase[i] for i in clusters]
 
 
-def get_strucs(paths: list[Path]) -> dict[str, Structure.Structure]:
-    """
-    paths: list of paths to pdb files.
-    returns: dict mapping filenames to biopython structure objects.
-    e.g. {'8wrz.pdb': <Structure id=8wrz.pdb>, '8ja3.pdb': <Structure id=8ja3.pdb>}
-    """
-    return {str(p): parser.get_structure(str(p), p) for p in tqdm(paths, desc='Loading structures')}
+def parse_structure(path: Path):
+    parser = PDBParser(QUIET=True)
+    return str(path), parser.get_structure(str(path), path)
+
+
+def get_strucs(paths: list[Path], workers=1) -> dict[str, Structure]:
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        results = pool.map(parse_structure, paths)
+        return dict(tqdm(results, total=len(paths), desc="Loading structures"))
 
 
 def map_clusters2seqs(clusters: list[int], seqs: list[str]) -> dict[int, list[str]]:
