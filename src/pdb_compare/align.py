@@ -7,22 +7,7 @@ from pathlib import Path
 import argparse
 import tempfile
 from shutil import copy2
-from Bio.PDB import PDBParser, PDBIO, Select
 from Bio.PDB.cealign import CEAligner
-
-
-class ChainSelect(Select):
-
-    def __init__(self, chain_id):
-        self.chain_id = chain_id
-
-    def accept_chain(self, chain):
-        return chain.id == self.chain_id
-
-
-def load_structure(pdb_file):
-    parser = PDBParser(QUIET=True)
-    return parser.get_structure(Path(pdb_file).stem, str(pdb_file))
 
 
 def apply_transform(structure, rotation, translation):

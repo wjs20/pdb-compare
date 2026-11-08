@@ -107,16 +107,6 @@ def get_canonical_chains(clusters: list[int]) -> list[LiteralString]:
     return [string.ascii_uppercase[i] for i in clusters]
 
 
-def parse_structure(path: Path):
-    parser = PDBParser(QUIET=True)
-    return str(path), parser.get_structure(str(path), path)
-
-
-def get_strucs(paths: list[Path], workers=1) -> dict[str, Structure]:
-    with ProcessPoolExecutor(max_workers=workers) as pool:
-        results = pool.map(parse_structure, paths)
-        return dict(tqdm(results, total=len(paths), desc="Loading structures"))
-
 
 def map_clusters2seqs(clusters: list[int], seqs: list[str]) -> dict[int, list[str]]:
     """

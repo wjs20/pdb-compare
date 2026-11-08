@@ -2,6 +2,7 @@ from argparse import ArgumentError
 import sys
 from .cluster import *
 from .align import *
+from .io import get_strucs, parse_structure, write_structure
 
 
 def format_canonical(cluster2seqs: dict[int, list[str]], records: dict[str, list[tuple[str, str]]]) -> list[str]:
@@ -73,7 +74,7 @@ def handle_align(args):
     print(f"{'Structure':<50}{'Chain':<8}{'RMSD (Å)':>12}")
     print('-' * 72)
 
-    reference_pdb = load_structure(reference_pdb)
+    _, reference_pdb = parse_structure(reference_pdb)
     aligner = CEAligner()
 
     with partial_structure(reference_pdb, reference_chain):
@@ -83,16 +84,13 @@ def handle_align(args):
         pdb_path = record['pdb_path']
         chain_id = record['chain_id']
         try:
-            target_pdb = load_structure(record["pdb_path"])
+            _, target_pdb = parse_structure(record["pdb_path"])
             rmsd = align_to_reference(
                 aligner,
                 target_pdb,
                 record["chain_id"],
             )
-            output_pdb = outdir / record["pdb_path"].name
-            io = PDBIO()
-            io.set_structure(target_pdb)
-            io.save(str(output_pdb))
+            write_structure(target_pdb, outdir / record["pdb_path"].name)
             print(f'{pdb_path.name:<50}{str(chain_id):<8}{rmsd:12.3f}')
         except Exception as exc:
             print(f'{pdb_path.name:<50}{str(chain_id):<8}ERROR: {exc}')
@@ -124,7 +122,8 @@ def main():
     try:
         args.func(args)
     except Exception as e:
-        raise SystemExit(str(e))
+        raise e
+        # raise SystemExit(str(e))
     else:
         raise SystemExit()
 
