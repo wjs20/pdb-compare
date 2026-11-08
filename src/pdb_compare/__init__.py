@@ -8,7 +8,7 @@ from . import align
 from . import io
 
 
-def handle_cluster(args):
+def handle_cluster(args) -> int:
     similarity_threshold = args.threshold
     mode = args.mode
 
@@ -48,7 +48,7 @@ def handle_cluster(args):
     return 0
 
 
-def handle_align(args):
+def handle_align(args) -> int:
     if sys.stdin.isatty():
         lines = open(args.mapping_file).read().splitlines()
     else:
@@ -75,6 +75,7 @@ def handle_align(args):
     for t, _ in targets:
         name = Path(t.id).name
         io.write_structure(t, outdir / name)
+    return 0
 
 
 def get_user_args():
@@ -101,12 +102,11 @@ def get_user_args():
 def main():
     args = get_user_args()
     try:
-        args.func(args)
+        status = args.func(args)
     except Exception as e:
-        raise e
-        # raise SystemExit(str(e))
+        raise SystemExit(str(e))
     else:
-        raise SystemExit()
+        raise SystemExit(status)
 
 
 if __name__ == '__main__':
