@@ -107,7 +107,7 @@ def get_user_args():
     cluster_parser = subparsers.add_parser('cluster', help='tools for clustering pdb structure chains')
     cluster_parser.add_argument('-d', '--display', choices=['sequences', 'clusters'])
     cluster_parser.add_argument('-t', '--threshold', type=float, default=0.8, help='Normalized similarity score threshold. Should be less than 1.', required=False)
-    cluster_parser.add_argument('-m', '--mode', default='local', choices=['local', 'global'], required=False)
+    cluster_parser.add_argument('-m', '--mode', default='local', choices=['local', 'global'], help='Choose local or global sequence alignment', required=False)
     cluster_parser.add_argument('-i', '--input', type=Path, help='file containing pdb files in the format <pdb file>:<chain id>', required=False)
     cluster_parser.set_defaults(func=handle_cluster)
 
