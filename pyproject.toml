@@ -9,7 +9,6 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "biopython>=1.88",
-    "pytest>=9.2.0",
     "scipy>=1.18.1",
     "tqdm>=4.70.1",
 ]
@@ -20,3 +19,8 @@ pdb-compare = "pdb_compare:main"
 [build-system]
 requires = ["uv_build>=0.12.0,<0.13.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
