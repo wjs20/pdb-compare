@@ -3,8 +3,8 @@ import argparse
 from pathlib import Path
 import sys
 
-from . import cluster
-from . import align
+from . import clustering
+from . import alignment
 from . import io
 
 
@@ -12,7 +12,7 @@ def handle_cluster(args) -> int:
     similarity_threshold = args.threshold
     mode = args.mode
 
-    aligner = cluster.get_aligner(cluster.Mode(mode))
+    aligner = alignment.get_aligner(alignment.Mode(mode))
 
     if sys.stdin.isatty():
         if args.input is None:
@@ -28,14 +28,14 @@ def handle_cluster(args) -> int:
 
     strucs = io.get_strucs(paths, args.workers)
 
-    records = cluster.seq2id(strucs)
+    records = clustering.seq2id(strucs)
     seqs = list(records)
-    adj = cluster.get_adj_mat(seqs, aligner, similarity_threshold)
-    clusters = cluster.get_clusters(adj)
-    d = cluster.map_clusters2seqs(clusters, seqs)
+    adj = alignment.get_adj_mat(seqs, aligner, similarity_threshold)
+    clusters = clustering.get_clusters(adj)
+    d = clustering.map_clusters2seqs(clusters, seqs)
 
     if args.display == 'clusters':
-        canonicalized = cluster.fmt_canonical(d, records)
+        canonicalized = clustering.fmt_canonical(d, records)
         for c in canonicalized: print(c)
         return 0
     elif args.display == 'sequences':
@@ -53,7 +53,7 @@ def handle_align(args) -> int:
         lines = open(args.mapping_file).read().splitlines()
     else:
         lines = sys.stdin.read().splitlines()
-    records = align.parse_mappings(lines)
+    records = alignment.parse_mappings(lines)
     referece_path = records[0]['pdb_path']
     reference_chain = records[0]['chain_id']
     targets = records[1:]
@@ -68,7 +68,7 @@ def handle_align(args) -> int:
     strucs = io.get_strucs(path2chain.keys(), args.workers)
     targets = [(struc, path2chain[Path(path)]) for path, struc in strucs.items()]
 
-    align.align_structures(reference, reference_chain, targets)
+    alignment.align_structures(reference, reference_chain, targets)
 
     for t, _ in targets:
         name = Path(t.id).name
