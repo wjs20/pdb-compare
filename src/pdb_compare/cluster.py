@@ -105,21 +105,12 @@ def get_canonical_chains(clusters: list[int]) -> list[LiteralString]:
     return [string.ascii_uppercase[i] for i in clusters]
 
 
-def get_strucs_from_path(path: Path) -> dict[str, Structure.Structure]:
+def get_strucs(paths: list[Path]) -> dict[str, Structure.Structure]:
     """
-    path: path to file containing paths to pdbfiles. returns: dict mapping filenames to biopython structure objects.
+    paths: list of paths to pdb files.
+    returns: dict mapping filenames to biopython structure objects.
     e.g. {'8wrz.pdb': <Structure id=8wrz.pdb>, '8ja3.pdb': <Structure id=8ja3.pdb>}
     """
-    paths = [Path(r) for r in path.read_text().splitlines()]
-    return {str(p): parser.get_structure(str(p), p) for p in tqdm(paths, desc='Loading structures')}
-
-
-def get_strucs_from_stream(stream: str) -> dict[str, Structure.Structure]:
-    """
-    stream: stream containing paths to pdbfiles. returns: dict mapping filenames to biopython structure objects.
-    e.g. {'8wrz.pdb': <Structure id=8wrz.pdb>, '8ja3.pdb': <Structure id=8ja3.pdb>}
-    """
-    paths = [Path(r) for r in stream.splitlines()]
     return {str(p): parser.get_structure(str(p), p) for p in tqdm(paths, desc='Loading structures')}
 
 

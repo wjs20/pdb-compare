@@ -27,10 +27,16 @@ def handle_cluster(args):
         if args.input is None:
             raise ArgumentError(args.input, message='No input from stdin. Pass input via --input argument')
         path = args.input
-        strucs = get_strucs_from_path(path)
+        lines = path.read_text().splitlines()
     else:
-        stream = sys.stdin.read()
-        strucs = get_strucs_from_stream(stream)
+        lines = sys.stdin.read().splitlines()
+
+    paths = [Path(line) for line in lines]
+    for path in paths:
+        if not path.exists():
+            raise FileNotFoundError(f"{path} not found")
+
+    strucs = get_strucs(paths)
 
     records = seq2id(strucs)
     seqs = list(records)
