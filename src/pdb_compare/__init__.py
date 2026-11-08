@@ -1,32 +1,22 @@
-from argparse import ArgumentError
+import shutil
+import argparse
+from pathlib import Path
 import sys
-from .cluster import *
-from .align import *
-from .io import get_strucs, parse_structure, write_structure
 
-
-def format_canonical(cluster2seqs: dict[int, list[str]], records: dict[str, list[tuple[str, str]]]) -> list[str]:
-    return sorted(
-        [
-            '\t'.join(('|'.join(identifier), str(k)))
-            for k, seqs in cluster2seqs.items()
-            for s in seqs
-            for identifier in records[s]
-        ], key=itemgetter(-1)
-    )
+from . import cluster
+from . import align
+from . import io
 
 
 def handle_cluster(args):
     similarity_threshold = args.threshold
     mode = args.mode
 
-    aligner = PairwiseAligner(mode=mode)
-    BLOSUM62 = substitution_matrices.load('BLOSUM62')
-    aligner.substitution_matrix = BLOSUM62
+    aligner = cluster.get_aligner(cluster.Mode(mode))
 
     if sys.stdin.isatty():
         if args.input is None:
-            raise ArgumentError(args.input, message='No input from stdin. Pass input via --input argument')
+            raise argparse.ArgumentError(args.input, message='No input from stdin. Pass input via --input argument')
         lines = args.input.read_text().splitlines()
     else:
         lines = sys.stdin.read().splitlines()
@@ -36,21 +26,21 @@ def handle_cluster(args):
         if not path.exists():
             raise FileNotFoundError(f"{path} not found")
 
-    strucs = get_strucs(paths, args.workers)
+    strucs = io.get_strucs(paths, args.workers)
 
-    records = seq2id(strucs)
+    records = cluster.seq2id(strucs)
     seqs = list(records)
-    adj = get_adj_mat(seqs, aligner, similarity_threshold)
-    clusters = get_clusters(adj)
-    d = map_clusters2seqs(clusters, seqs)
+    adj = cluster.get_adj_mat(seqs, aligner, similarity_threshold)
+    clusters = cluster.get_clusters(adj)
+    d = cluster.map_clusters2seqs(clusters, seqs)
 
     if args.display == 'clusters':
-        canonicalized = format_canonical(d, records)
+        canonicalized = cluster.fmt_canonical(d, records)
         for c in canonicalized: print(c)
         return 0
     elif args.display == 'sequences':
-        for cluster, seqs in d.items():
-            print('cluster: ', cluster)
+        for c, seqs in d.items():
+            print('cluster: ', c)
             print('-'*30)
             for seq in seqs:
                 print(seq)
@@ -63,34 +53,34 @@ def handle_align(args):
         lines = open(args.mapping_file).read().splitlines()
     else:
         lines = sys.stdin.read().splitlines()
-    records: list[ChainRecord] = parse_mappings(lines)
+    records: list[align.ChainRecord] = align.parse_mappings(lines)
     reference_pdb = records[0]['pdb_path']
     reference_chain = records[0]['chain_id']
     targets = records[1:]
     print(f"Using reference: {reference_pdb}{(f' (chain {reference_chain})' if reference_chain else '')}")
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
-    copy2(reference_pdb, outdir / reference_pdb.name)
+    shutil.copy2(reference_pdb, outdir / reference_pdb.name)
     print(f"{'Structure':<50}{'Chain':<8}{'RMSD (Å)':>12}")
     print('-' * 72)
 
-    _, reference_pdb = parse_structure(reference_pdb)
-    aligner = CEAligner()
+    _, reference_pdb = io.parse_structure(reference_pdb)
+    aligner = align.CEAligner()
 
-    with partial_structure(reference_pdb, reference_chain):
+    with align.partial_structure(reference_pdb, reference_chain):
         aligner.set_reference(reference_pdb)
 
     for record in targets:
         pdb_path = record['pdb_path']
         chain_id = record['chain_id']
         try:
-            _, target_pdb = parse_structure(record["pdb_path"])
-            rmsd = align_to_reference(
+            _, target_pdb = io.parse_structure(record["pdb_path"])
+            rmsd = align.align_to_reference(
                 aligner,
                 target_pdb,
                 record["chain_id"],
             )
-            write_structure(target_pdb, outdir / record["pdb_path"].name)
+            io.write_structure(target_pdb, outdir / record["pdb_path"].name)
             print(f'{pdb_path.name:<50}{str(chain_id):<8}{rmsd:12.3f}')
         except Exception as exc:
             print(f'{pdb_path.name:<50}{str(chain_id):<8}ERROR: {exc}')

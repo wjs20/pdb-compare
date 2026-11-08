@@ -1,3 +1,4 @@
+from enum import StrEnum
 import os
 from concurrent.futures import ProcessPoolExecutor
 
@@ -122,3 +123,24 @@ def map_clusters2seqs(clusters: list[int], seqs: list[str]) -> dict[int, list[st
     d = defaultdict(list)
     for clust, seq in zip(clusters, seqs, strict=True): d[clust].append(seq)
     return dict(d)
+
+
+def fmt_canonical(cluster2seqs: dict[int, list[str]], records: dict[str, list[tuple[str, str]]]) -> list[str]:
+    return sorted(
+        [
+            '\t'.join(('|'.join(identifier), str(k)))
+            for k, seqs in cluster2seqs.items()
+            for s in seqs
+            for identifier in records[s]
+        ], key=itemgetter(-1)
+    )
+
+
+class Mode(StrEnum):
+    LOCAL = 'local'
+    GLOBAL = 'global'
+    FOGSAA = 'fogsaa'
+
+
+def get_aligner(mode: Mode):
+    return PairwiseAligner(mode=mode.value, substitution_matrix=substitution_matrices.load('BLOSUM62'))
