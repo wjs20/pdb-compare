@@ -90,14 +90,17 @@ def get_structure_aligner(reference_pdb: Structure, reference_chain: str) -> CEA
     return aligner
 
 
-def align_structures(reference: Structure, reference_chain: str, targets: list[tuple[Structure, str]]) -> None:
+def align_structures(reference: Structure, reference_chain: str, targets: list[tuple[Structure, str]]) -> list[Structure]:
     aligner = get_structure_aligner(reference, reference_chain)
     print(f"{'Structure':<50}{'Chain':<8}{'RMSD (Å)':>12}")
     print('-' * 72)
+    results = []
     for t, c in targets:
         name = Path(t.id).name
         try:
             rmsd = align_to_reference(aligner, t, c)
             print(f'{name:<50}{str(c):<8}{rmsd:12.3f}')
+            results.append(t)
         except Exception as exc:
             print(f'{name:<50}{str(c):<8}ERROR: {exc}')
+    return results

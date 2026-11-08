@@ -29,9 +29,9 @@ def handle_align(args) -> int:
     strucs = io.get_strucs(path2chain.keys(), args.workers)
     targets = [(struc, path2chain[Path(path)]) for path, struc in strucs.items()]
 
-    alignment.align_structures(reference, reference_chain, targets)
+    sucessful = alignment.align_structures(reference, reference_chain, targets)
 
-    for t, _ in targets:
+    for t, _ in sucessful:
         name = Path(t.id).name
         io.write_structure(t, outdir / name)
     return 0
