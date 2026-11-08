@@ -1,0 +1,21 @@
+[project]
+name = "pdb-compare"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "William Steele", email = "you@example.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "biopython>=1.88",
+    "scipy>=1.18.1",
+    "tqdm>=4.70.1",
+]
+
+[project.scripts]
+pdb-compare = "pdb_compare:main"
+
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"

@@ -1,0 +1,109 @@
+from argparse import ArgumentError
+import sys
+from .cluster import *
+from .align import *
+
+
+def format_canonical(cluster2seqs: dict[int, list[str]], records: dict[str, list[tuple[str, str]]]) -> list[str]:
+    return sorted(
+        [
+            '\t'.join(('|'.join(identifier), str(k)))
+            for k, seqs in cluster2seqs.items()
+            for s in seqs
+            for identifier in records[s]
+        ], key=itemgetter(-1)
+    )
+
+
+def handle_cluster(args):
+    similarity_threshold = args.threshold
+    mode = args.mode
+
+    aligner = PairwiseAligner(mode=mode)
+    BLOSUM62 = substitution_matrices.load('BLOSUM62')
+    aligner.substitution_matrix = BLOSUM62
+
+    if sys.stdin.isatty():
+        if args.input is None:
+            raise ArgumentError(args.input, message='No input from stdin. Pass input via --input argument')
+        path = args.input
+        strucs = get_strucs_from_path(path)
+    else:
+        stream = sys.stdin.read()
+        strucs = get_strucs_from_stream(stream)
+
+    records = seq2id(strucs)
+    seqs = list(records)
+    adj = get_adj_mat(seqs, aligner, similarity_threshold)
+    clusters = get_clusters(adj)
+    d = map_clusters2seqs(clusters, seqs)
+
+    if args.display == 'clusters':
+        canonicalized = format_canonical(d, records)
+        for c in canonicalized: print(c)
+        return 0
+    elif args.display == 'sequences':
+        for cluster, seqs in d.items():
+            print('cluster: ', cluster)
+            print('-'*30)
+            for seq in seqs:
+                print(seq)
+            print('-'*30)
+
+    return 0
+
+
+def handle_align(args):
+    records = read_mapping_file(args.mapping_file)
+    reference_pdb = records[0]['pdb_path']
+    reference_chain = records[0]['chain_id']
+    targets = records[1:]
+    print(f"Using reference: {reference_pdb}{(f' (chain {reference_chain})' if reference_chain else '')}")
+    outdir = Path(args.outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    copy2(reference_pdb, outdir / reference_pdb.name)
+    print(f"{'Structure':<50}{'Chain':<8}{'RMSD (Å)':>12}")
+    print('-' * 72)
+    for record in targets:
+        pdb_path = record['pdb_path']
+        chain_id = record['chain_id']
+        output_pdb = outdir / pdb_path.name
+        try:
+            rmsd = align_to_reference(ref_pdb=reference_pdb, target_pdb=pdb_path, output_pdb=output_pdb, ref_chain=reference_chain, target_chain=chain_id)
+            print(f'{pdb_path.name:<50}{str(chain_id):<8}{rmsd:12.3f}')
+        except Exception as exc:
+            print(f'{pdb_path.name:<50}{str(chain_id):<8}ERROR: {exc}')
+
+
+def get_user_args():
+    parser = argparse.ArgumentParser(description='Align PDB structures using Biopython CEAligner.')
+
+    subparsers = parser.add_subparsers(required=True)
+
+    cluster_parser = subparsers.add_parser('cluster', help='tools for clustering pdb structure chains')
+    cluster_parser.add_argument('-d', '--display', choices=['sequences', 'clusters'])
+    cluster_parser.add_argument('-t', '--threshold', type=float, default=0.8, help='Normalized similarity score threshold. Should be less than 1.', required=False)
+    cluster_parser.add_argument('-m', '--mode', default='local', choices=['local', 'global'], required=False)
+    cluster_parser.add_argument('-i', '--input', type=Path, help='file containing pdb files in the format <pdb file>:<chain id>', required=False)
+    cluster_parser.set_defaults(func=handle_cluster)
+
+    align_parser = subparsers.add_parser('align', help='tools for aligning pdb structure chains')
+    align_parser.add_argument('-f', '--mapping-file', help='File containing rows:<pdb_path>|<chain_id>')
+    align_parser.add_argument('-o', '--outdir', default='aligned', help='Output directory.')
+    align_parser.set_defaults(func=handle_align)
+
+    return parser.parse_args()
+
+
+def main():
+    args = get_user_args()
+    try:
+        args.func(args)
+    except Exception as e:
+        raise SystemExit(str(e))
+    else:
+        raise SystemExit()
+
+
+if __name__ == '__main__':
+    main()
