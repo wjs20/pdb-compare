@@ -49,12 +49,15 @@ def handle_cluster(args):
             for seq in seqs:
                 print(seq)
             print('-'*30)
-
     return 0
 
 
 def handle_align(args):
-    records = read_mapping_file(args.mapping_file)
+    if sys.stdin.isatty():
+        lines = open(args.mapping_file).read().splitlines()
+    else:
+        lines = sys.stdin.read().splitlines()
+    records = read_mapping(lines)
     reference_pdb = records[0]['pdb_path']
     reference_chain = records[0]['chain_id']
     targets = records[1:]
@@ -100,6 +103,7 @@ def main():
     try:
         args.func(args)
     except Exception as e:
+        raise e
         raise SystemExit(str(e))
     else:
         raise SystemExit()

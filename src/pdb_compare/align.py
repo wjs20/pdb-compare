@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from collections.abc import Iterator, Iterable
 from pathlib import Path
 import argparse
 import tempfile
@@ -29,6 +30,7 @@ def extract_chain_structure(structure, chain_id):
         io.save(tmp.name, select=ChainSelect(chain_id))
         return load_structure(tmp.name)
 
+
 def apply_transform(structure, rotation, translation):
     """
     Apply a rigid-body transformation to every atom
@@ -37,26 +39,32 @@ def apply_transform(structure, rotation, translation):
     for atom in structure.get_atoms():
         atom.transform(rotation, translation)
 
-def read_mapping_file(mapping_file):
-    """
-    Mapping file format:
 
-        path/to/structure1.pdb|A
-        path/to/structure2.pdb|B
-        path/to/structure3.pdb|A
+def read_mapping(lines: Iterable[str]) -> list[dict[str, str | Path]]:
     """
+    Read chain mapping file in the format <filepath>|<chain id> e.g.
+    The chain id should be the file specific reference to the chain that will be used for registration.
+
+        example/input/8wrz.pdb|A
+        example/input/8ja3.pdb|B
+        ...
+        example/input/8j8v.pdb|F
+        example/input/7dfa.pdb|A
+        example/input/8j97.pdb|A
+    """
+
     records = []
-    with open(mapping_file) as fh:
-        for line_number, line in enumerate(fh, start=1):
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            try:
-                pdb_path, chain_id = line.split('|')
-            except ValueError:
-                raise ValueError(f'Invalid mapping on line {line_number}: {line}')
-            records.append({'pdb_path': Path(pdb_path), 'chain_id': chain_id})
+    for line_number, line in enumerate(lines, start=1):
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        try:
+            pdb_path, chain_id = line.split('|')
+        except ValueError:
+            raise ValueError(f'Invalid mapping on line {line_number}: {line}')
+        records.append({'pdb_path': Path(pdb_path), 'chain_id': chain_id})
     return records
+
 
 def align_to_reference(ref_pdb, target_pdb, output_pdb, ref_chain=None, target_chain=None):
     """
@@ -81,33 +89,3 @@ def align_to_reference(ref_pdb, target_pdb, output_pdb, ref_chain=None, target_c
     io.set_structure(target_full)
     io.save(str(output_pdb))
     return float(aligner.rms)
-
-def parse_args():
-    parser = argparse.ArgumentParser(description='Align PDB structures using Biopython CEAligner.')
-    parser.add_argument('-m', '--mapping-file', help='File containing rows:\n<pdb_path>|<chain_id>')
-    parser.add_argument('-o', '--outdir', default='aligned', help='Output directory.')
-    return parser.parse_args()
-
-def main():
-    args = parse_args()
-    records = read_mapping_file(args.mapping_file)
-    reference_pdb = records[0]['pdb_path']
-    reference_chain = records[0]['chain_id']
-    targets = records[1:]
-    print(f"Using reference: {reference_pdb}{(f' (chain {reference_chain})' if reference_chain else '')}")
-    outdir = Path(args.outdir)
-    outdir.mkdir(parents=True, exist_ok=True)
-    copy2(reference_pdb, outdir / reference_pdb.name)
-    print(f"{'Structure':<50}{'Chain':<8}{'RMSD (Å)':>12}")
-    print('-' * 72)
-    for record in targets:
-        pdb_path = record['pdb_path']
-        chain_id = record['chain_id']
-        output_pdb = outdir / pdb_path.name
-        try:
-            rmsd = align_to_reference(ref_pdb=reference_pdb, target_pdb=pdb_path, output_pdb=output_pdb, ref_chain=reference_chain, target_chain=chain_id)
-            print(f'{pdb_path.name:<50}{str(chain_id):<8}{rmsd:12.3f}')
-        except Exception as exc:
-            print(f'{pdb_path.name:<50}{str(chain_id):<8}ERROR: {exc}')
-if __name__ == '__main__':
-    main()
