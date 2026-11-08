@@ -24,4 +24,5 @@ build-backend = "uv_build"
 dev = [
     "autoflake>=2.4.0",
     "pytest>=9.2.0",
+    "snakeviz>=2.2.2",
 ]
