@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+from typing import TypedDict
+from contextlib import contextmanager
+from Bio.PDB.Structure import Structure
 from collections.abc import Iterator, Iterable
 from pathlib import Path
 import argparse
@@ -6,6 +9,7 @@ import tempfile
 from shutil import copy2
 from Bio.PDB import PDBParser, PDBIO, Select
 from Bio.PDB.cealign import CEAligner
+
 
 class ChainSelect(Select):
 
@@ -15,20 +19,10 @@ class ChainSelect(Select):
     def accept_chain(self, chain):
         return chain.id == self.chain_id
 
+
 def load_structure(pdb_file):
     parser = PDBParser(QUIET=True)
     return parser.get_structure(Path(pdb_file).stem, str(pdb_file))
-
-def extract_chain_structure(structure, chain_id):
-    """
-    Create a temporary structure containing only a single chain.
-    Used only for determining the alignment.
-    """
-    with tempfile.NamedTemporaryFile(suffix='.pdb', delete=False) as tmp:
-        io = PDBIO()
-        io.set_structure(structure)
-        io.save(tmp.name, select=ChainSelect(chain_id))
-        return load_structure(tmp.name)
 
 
 def apply_transform(structure, rotation, translation):
@@ -40,7 +34,20 @@ def apply_transform(structure, rotation, translation):
         atom.transform(rotation, translation)
 
 
-def read_mapping(lines: Iterable[str]) -> list[dict[str, str | Path]]:
+class ChainRecord(TypedDict):
+    pdb_path: Path
+    chain_id: str
+
+
+def parse_mapping(line):
+    try:
+        pdb_path, chain_id = line.split('|')
+    except ValueError:
+        raise ValueError(f'Invalid mapping for: {line}')
+    return dict(pdb_path=Path(pdb_path), chain_id=chain_id)
+
+
+def parse_mappings(lines: Iterable[str]) -> list[ChainRecord]:
     """
     Read chain mapping file in the format <filepath>|<chain id> e.g.
     The chain id should be the file specific reference to the chain that will be used for registration.
@@ -48,44 +55,54 @@ def read_mapping(lines: Iterable[str]) -> list[dict[str, str | Path]]:
         example/input/8wrz.pdb|A
         example/input/8ja3.pdb|B
         ...
-        example/input/8j8v.pdb|F
         example/input/7dfa.pdb|A
         example/input/8j97.pdb|A
     """
 
-    records = []
-    for line_number, line in enumerate(lines, start=1):
-        line = line.strip()
-        if not line or line.startswith('#'):
-            continue
-        try:
-            pdb_path, chain_id = line.split('|')
-        except ValueError:
-            raise ValueError(f'Invalid mapping on line {line_number}: {line}')
-        records.append({'pdb_path': Path(pdb_path), 'chain_id': chain_id})
-    return records
+    lines = map(str.strip, lines)
+    lines = filter(lambda line: line and not line.startswith('#'), lines)
+    return list(map(parse_mapping, lines))
 
 
-def align_to_reference(ref_pdb, target_pdb, output_pdb, ref_chain=None, target_chain=None):
+@contextmanager
+def partial_structure(structure, keep):
     """
-    Use CEAligner on selected chains but apply
-    the resulting transform to the entire target
-    structure.
+    Context manager to return a partial chain view on an existing structure.
+    Used in alignment algorithm to align based on subset of chains without having to write out and read a new structure.
     """
-    reference_full = load_structure(ref_pdb)
-    target_full = load_structure(target_pdb)
-    reference_alignment = reference_full
-    target_alignment = target_full
-    if ref_chain:
-        reference_alignment = extract_chain_structure(reference_full, ref_chain)
-    if target_chain:
-        target_alignment = extract_chain_structure(target_full, target_chain)
-    aligner = CEAligner()
-    aligner.set_reference(reference_alignment)
-    aligner.align(target_alignment, transform=False)
-    rotation, translation = aligner._rigid_motion
-    apply_transform(target_full, rotation, translation)
+    if not keep:
+        yield structure
+        return
+
+    model = structure[0]
+    original = list(model.child_list)
+
+    if keep not in model:
+        raise KeyError(f"Chain {keep!r} not found")
+
+    detached = [c for c in original if c.id != keep]
+
+    try:
+        for chain in detached:
+            model.detach_child(chain.id)
+        yield structure
+    finally:
+        for chain in detached:
+            if chain.id not in model:
+                model.add(chain)
+        # included to retain input chain ordering
+        model.child_list[:] = original
+
+
+def align_to_reference(aligner, target_pdb, output_pdb, target_chain):
+    with partial_structure(target_pdb, target_chain):
+        aligner.align(target_pdb, transform=False)
+        rotation, translation = aligner._rigid_motion
+
+    apply_transform(target_pdb, rotation, translation)
+
     io = PDBIO()
-    io.set_structure(target_full)
+    io.set_structure(target_pdb)
     io.save(str(output_pdb))
+
     return float(aligner.rms)

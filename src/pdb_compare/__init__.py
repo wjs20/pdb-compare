@@ -63,7 +63,7 @@ def handle_align(args):
         lines = open(args.mapping_file).read().splitlines()
     else:
         lines = sys.stdin.read().splitlines()
-    records = read_mapping(lines)
+    records: list[ChainRecord] = parse_mappings(lines)
     reference_pdb = records[0]['pdb_path']
     reference_chain = records[0]['chain_id']
     targets = records[1:]
@@ -73,12 +73,24 @@ def handle_align(args):
     copy2(reference_pdb, outdir / reference_pdb.name)
     print(f"{'Structure':<50}{'Chain':<8}{'RMSD (Å)':>12}")
     print('-' * 72)
+
+    reference_pdb = load_structure(reference_pdb)
+    aligner = CEAligner()
+
+    with partial_structure(reference_pdb, reference_chain):
+        aligner.set_reference(reference_pdb)
+
     for record in targets:
         pdb_path = record['pdb_path']
         chain_id = record['chain_id']
-        output_pdb = outdir / pdb_path.name
         try:
-            rmsd = align_to_reference(ref_pdb=reference_pdb, target_pdb=pdb_path, output_pdb=output_pdb, ref_chain=reference_chain, target_chain=chain_id)
+            target_pdb = load_structure(record["pdb_path"])
+            rmsd = align_to_reference(
+                aligner,
+                target_pdb,
+                outdir / record["pdb_path"].name,
+                record["chain_id"],
+            )
             print(f'{pdb_path.name:<50}{str(chain_id):<8}{rmsd:12.3f}')
         except Exception as exc:
             print(f'{pdb_path.name:<50}{str(chain_id):<8}ERROR: {exc}')
