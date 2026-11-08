@@ -94,15 +94,9 @@ def partial_structure(structure, keep):
         model.child_list[:] = original
 
 
-def align_to_reference(aligner, target_pdb, output_pdb, target_chain):
+def align_to_reference(aligner, target_pdb, target_chain):
     with partial_structure(target_pdb, target_chain):
         aligner.align(target_pdb, transform=False)
         rotation, translation = aligner._rigid_motion
-
     apply_transform(target_pdb, rotation, translation)
-
-    io = PDBIO()
-    io.set_structure(target_pdb)
-    io.save(str(output_pdb))
-
     return float(aligner.rms)

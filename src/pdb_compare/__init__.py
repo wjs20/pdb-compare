@@ -88,9 +88,12 @@ def handle_align(args):
             rmsd = align_to_reference(
                 aligner,
                 target_pdb,
-                outdir / record["pdb_path"].name,
                 record["chain_id"],
             )
+            output_pdb = outdir / record["pdb_path"].name
+            io = PDBIO()
+            io.set_structure(target_pdb)
+            io.save(str(output_pdb))
             print(f'{pdb_path.name:<50}{str(chain_id):<8}{rmsd:12.3f}')
         except Exception as exc:
             print(f'{pdb_path.name:<50}{str(chain_id):<8}ERROR: {exc}')
