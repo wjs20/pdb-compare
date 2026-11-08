@@ -1,21 +1,12 @@
 from Bio.PDB.Chain import Chain
-from enum import StrEnum
-import os
-from concurrent.futures import ProcessPoolExecutor
 
-import argparse
 from operator import itemgetter
 from typing import LiteralString
 import string
 import numpy as np
-from pathlib import Path
-from pprint import pprint
 from Bio.PDB import PDBParser, PPBuilder
 from Bio.PDB.Structure import Structure
-from Bio.Align import substitution_matrices
-from tqdm import tqdm
-from itertools import combinations, islice
-from collections import defaultdict, Counter
+from collections import defaultdict
 
 from scipy.sparse import csr_array, csgraph
 

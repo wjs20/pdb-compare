@@ -1,33 +1,11 @@
 from enum import StrEnum
-import os
-from concurrent.futures import ProcessPoolExecutor
 
-import argparse
-from operator import itemgetter
-from typing import LiteralString
-import string
 import numpy as np
-from pathlib import Path
-from pprint import pprint
-from Bio.PDB import PDBParser, PPBuilder
-from Bio.PDB.Structure import Structure
 from Bio.Align import substitution_matrices
-from tqdm import tqdm
-from itertools import combinations, islice
-from collections import defaultdict, Counter
+from itertools import combinations
 import numpy.typing as npt
 
-from scipy.sparse import csr_array, csgraph
 from enum import StrEnum
-from typing import TypedDict
-from contextlib import contextmanager
-from Bio.PDB.Structure import Structure
-from collections.abc import Iterator, Iterable
-from pathlib import Path
-import argparse
-import tempfile
-from shutil import copy2
-from Bio.PDB.cealign import CEAligner
 
 from Bio.Align import PairwiseAligner
 

@@ -1,11 +1,8 @@
 from typing import TypedDict
 from contextlib import contextmanager
 from Bio.PDB.Structure import Structure
-from collections.abc import Iterator, Iterable
+from collections.abc import Iterable
 from pathlib import Path
-import argparse
-import tempfile
-from shutil import copy2
 from Bio.PDB.cealign import CEAligner
 
 

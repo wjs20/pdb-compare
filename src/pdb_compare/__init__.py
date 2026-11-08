@@ -1,11 +1,6 @@
-import shutil
 import argparse
 from pathlib import Path
-import sys
 
-from . import clustering
-from . import alignment
-from . import io
 from . import cli
 
 
