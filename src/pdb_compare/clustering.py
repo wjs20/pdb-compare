@@ -19,6 +19,8 @@ from collections import defaultdict, Counter
 
 from scipy.sparse import csr_array, csgraph
 
+from . import alignment
+
 parser = PDBParser()
 ppbuilder = PPBuilder()
 
@@ -104,6 +106,12 @@ def map_clusters2seqs(clusters: list[int], seqs: list[str]) -> dict[int, list[st
 
 
 def fmt_canonical(cluster2seqs: dict[int, list[str]], records: dict[str, list[tuple[str, str]]]) -> list[str]:
+    """
+    Format clusters as:
+    <pdb path>|<chain id>\tcluster
+
+    This is the format that is used by the structural aligner to select the chain to use for the alignment.
+    """
     return sorted(
         [
             '\t'.join(('|'.join(identifier), str(k)))
@@ -112,3 +120,13 @@ def fmt_canonical(cluster2seqs: dict[int, list[str]], records: dict[str, list[tu
             for identifier in records[s]
         ], key=itemgetter(-1)
     )
+
+
+def cluster_records(seqs: list[str], mode: str, similarity_threshold: float) -> dict[int, list[str]]:
+    """
+    Return a mapping from cluster id its sequence list.
+    """
+    aligner = alignment.get_aligner(alignment.Mode(mode))
+    adj = alignment.get_adj_mat(seqs, aligner, similarity_threshold)
+    clusters = get_clusters(adj)
+    return map_clusters2seqs(clusters, seqs)
