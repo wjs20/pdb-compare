@@ -14,9 +14,10 @@ def parse_structure(path: Path):
 
 
 def get_strucs(paths: Iterable[Path], workers=1) -> dict[str, Structure]:
+    paths = list(paths)
     with ProcessPoolExecutor(max_workers=workers) as pool:
         results = pool.map(parse_structure, paths)
-        return dict(tqdm(results, total=len(list(paths)), desc="Loading structures"))
+        return dict(tqdm(results, total=len(paths), desc="Loading structures"))
 
 
 def write_structure(structure: Structure, path: Path):
