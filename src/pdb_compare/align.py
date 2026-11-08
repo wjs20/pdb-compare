@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 from typing import TypedDict
 from contextlib import contextmanager
 from Bio.PDB.Structure import Structure
@@ -85,3 +84,21 @@ def align_to_reference(aligner, target_pdb, target_chain):
         rotation, translation = aligner._rigid_motion
     apply_transform(target_pdb, rotation, translation)
     return float(aligner.rms)
+
+
+def get_structure_aligner(reference_pdb: Structure, reference_chain: str) -> CEAligner:
+    aligner = CEAligner()
+    with partial_structure(reference_pdb, reference_chain):
+        aligner.set_reference(reference_pdb)
+    return aligner
+
+
+def align_structures(reference: Structure, reference_chain: str, targets: list[tuple[Structure, str]]) -> None:
+    aligner = get_structure_aligner(reference, reference_chain)
+    for t, c in targets:
+        name = Path(t.id).name
+        try:
+            rmsd = align_to_reference(aligner, t, c)
+            print(f'{name:<50}{str(c):<8}{rmsd:12.3f}')
+        except Exception as exc:
+            print(f'{name:<50}{str(c):<8}ERROR: {exc}')

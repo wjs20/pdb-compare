@@ -54,42 +54,33 @@ def handle_align(args):
     else:
         lines = sys.stdin.read().splitlines()
     records: list[align.ChainRecord] = align.parse_mappings(lines)
-    reference_pdb = records[0]['pdb_path']
+    referece_path = records[0]['pdb_path']
     reference_chain = records[0]['chain_id']
     targets = records[1:]
-    print(f"Using reference: {reference_pdb}{(f' (chain {reference_chain})' if reference_chain else '')}")
+    print(f"Using reference: {referece_path}{(f' (chain {reference_chain})' if reference_chain else '')}")
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(reference_pdb, outdir / reference_pdb.name)
+    shutil.copy2(referece_path, outdir / referece_path.name)
     print(f"{'Structure':<50}{'Chain':<8}{'RMSD (Å)':>12}")
     print('-' * 72)
 
-    _, reference_pdb = io.parse_structure(reference_pdb)
-    aligner = align.CEAligner()
+    _, reference = io.parse_structure(referece_path)
 
-    with align.partial_structure(reference_pdb, reference_chain):
-        aligner.set_reference(reference_pdb)
+    path2chain = {t['pdb_path']: t['chain_id'] for t in targets}
+    strucs = io.get_strucs(path2chain.keys(), args.workers)
+    targets = [(struc, path2chain[Path(path)]) for path, struc in strucs.items()]
 
-    for record in targets:
-        pdb_path = record['pdb_path']
-        chain_id = record['chain_id']
-        try:
-            _, target_pdb = io.parse_structure(record["pdb_path"])
-            rmsd = align.align_to_reference(
-                aligner,
-                target_pdb,
-                record["chain_id"],
-            )
-            io.write_structure(target_pdb, outdir / record["pdb_path"].name)
-            print(f'{pdb_path.name:<50}{str(chain_id):<8}{rmsd:12.3f}')
-        except Exception as exc:
-            print(f'{pdb_path.name:<50}{str(chain_id):<8}ERROR: {exc}')
+    align.align_structures(reference, reference_chain, targets)
+
+    for t, _ in targets:
+        name = Path(t.id).name
+        io.write_structure(t, outdir / name)
 
 
 def get_user_args():
     parser = argparse.ArgumentParser(description='Align PDB structures using Biopython CEAligner.')
 
-    parser.add_argument('-w', '--workers', default=1, help='Number of parallel workers to use', required=False)
+    parser.add_argument('-w', '--workers', type=int, default=1, help='Number of parallel workers to use', required=False)
     subparsers = parser.add_subparsers(required=True)
 
     cluster_parser = subparsers.add_parser('cluster', help='tools for clustering pdb structure chains')

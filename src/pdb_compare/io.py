@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from pathlib import Path
 from Bio.PDB import PDBParser
 from Bio.PDB import PDBIO
@@ -12,10 +13,11 @@ def parse_structure(path: Path):
     return str(path), parser.get_structure(str(path), path)
 
 
-def get_strucs(paths: list[Path], workers=1) -> dict[str, Structure]:
+def get_strucs(paths: Iterable[Path], workers=1) -> dict[str, Structure]:
     with ProcessPoolExecutor(max_workers=workers) as pool:
         results = pool.map(parse_structure, paths)
-        return dict(tqdm(results, total=len(paths), desc="Loading structures"))
+        return dict(tqdm(results, total=len(list(paths)), desc="Loading structures"))
+
 
 def write_structure(structure: Structure, path: Path):
     io = PDBIO()
