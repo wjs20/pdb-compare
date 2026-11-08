@@ -95,6 +95,8 @@ def get_structure_aligner(reference_pdb: Structure, reference_chain: str) -> CEA
 
 def align_structures(reference: Structure, reference_chain: str, targets: list[tuple[Structure, str]]) -> None:
     aligner = get_structure_aligner(reference, reference_chain)
+    print(f"{'Structure':<50}{'Chain':<8}{'RMSD (Å)':>12}")
+    print('-' * 72)
     for t, c in targets:
         name = Path(t.id).name
         try:

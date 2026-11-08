@@ -53,7 +53,7 @@ def handle_align(args) -> int:
         lines = open(args.mapping_file).read().splitlines()
     else:
         lines = sys.stdin.read().splitlines()
-    records: list[align.ChainRecord] = align.parse_mappings(lines)
+    records = align.parse_mappings(lines)
     referece_path = records[0]['pdb_path']
     reference_chain = records[0]['chain_id']
     targets = records[1:]
@@ -61,8 +61,6 @@ def handle_align(args) -> int:
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(referece_path, outdir / referece_path.name)
-    print(f"{'Structure':<50}{'Chain':<8}{'RMSD (Å)':>12}")
-    print('-' * 72)
 
     _, reference = io.parse_structure(referece_path)
 
